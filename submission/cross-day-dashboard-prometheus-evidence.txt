@@ -1,0 +1,120 @@
+---- day19 qdrant up ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "up",
+                    "instance": "host.docker.internal:6333",
+                    "job": "day19-qdrant"
+                },
+                "value": [
+                    1782758361.474,
+                    "1"
+                ]
+            }
+        ]
+    }
+}
+---- qdrant collections ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "collections_total",
+                    "instance": "host.docker.internal:6333",
+                    "job": "day19-qdrant"
+                },
+                "value": [
+                    1782758361.492,
+                    "1"
+                ]
+            }
+        ]
+    }
+}
+---- qdrant vectors ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "collections_vector_total",
+                    "instance": "host.docker.internal:6333",
+                    "job": "day19-qdrant"
+                },
+                "value": [
+                    1782758361.509,
+                    "3"
+                ]
+            }
+        ]
+    }
+}
+---- day20 llama up ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "up",
+                    "instance": "host.docker.internal:8080",
+                    "job": "day20-llamacpp"
+                },
+                "value": [
+                    1782758362.371,
+                    "1"
+                ]
+            }
+        ]
+    }
+}
+---- llama prompt tokens ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "llamacpp:prompt_tokens_total",
+                    "instance": "host.docker.internal:8080",
+                    "job": "day20-llamacpp"
+                },
+                "value": [
+                    1782758362.389,
+                    "10"
+                ]
+            }
+        ]
+    }
+}
+---- llama predicted tokens ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "llamacpp:tokens_predicted_total",
+                    "instance": "host.docker.internal:8080",
+                    "job": "day20-llamacpp"
+                },
+                "value": [
+                    1782758362.407,
+                    "16"
+                ]
+            }
+        ]
+    }
+}

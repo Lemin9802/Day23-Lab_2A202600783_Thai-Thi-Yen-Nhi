@@ -1,0 +1,15 @@
+python3 scripts/verify.py
+[PASS] 00-setup: setup-report.json committed  (path=/home/emin98/labs/Day23-Track2-Observability-Lab/00-setup/setup-report.json)
+[PASS] 01: app /healthz reachable
+[PASS] 01: /metrics exposes inference_requests_total
+[PASS] 02: Prometheus reachable
+[PASS] 02: Grafana reachable
+[PASS] 02: Alertmanager reachable
+[PASS] 02: 3 Day-23 dashboards loaded  (found=5)
+[PASS] 03: Jaeger UI reachable
+[PASS] 03: Loki ready
+[PASS] 03: OTel Collector self-metrics reachable
+[PASS] 04: drift-summary.json shows at least one drifted feature
+[PASS] submission: REFLECTION.md exists and is non-trivial
+
+Result: 12/12 checks passed

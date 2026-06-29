@@ -1,0 +1,9 @@
+./BONUS-agentops/agent_run.py:81:        with tracer.start_as_current_span(name) as sp:
+./01-instrument-fastapi/app/main.py:50:    trace_id: str
+./01-instrument-fastapi/app/main.py:69:    span = tracer.start_span("predict")
+./01-instrument-fastapi/app/main.py:78:        with tracer.start_as_current_span("embed-text") as s:
+./01-instrument-fastapi/app/main.py:82:        with tracer.start_as_current_span("vector-search") as s:
+./01-instrument-fastapi/app/main.py:86:        with tracer.start_as_current_span("generate-tokens") as s:
+./01-instrument-fastapi/app/main.py:100:        trace_id = format(span.get_span_context().trace_id, "032x")
+./01-instrument-fastapi/app/main.py:108:            trace_id=trace_id,
+./01-instrument-fastapi/app/main.py:115:            trace_id=trace_id,

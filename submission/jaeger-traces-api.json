@@ -1,0 +1,728 @@
+{
+    "data": [
+        {
+            "traceID": "365412167d043cd4c42fb64a99710b27",
+            "spans": [
+                {
+                    "traceID": "365412167d043cd4c42fb64a99710b27",
+                    "spanID": "e972e4c17280cb22",
+                    "operationName": "vector-search",
+                    "references": [],
+                    "startTime": 1782706318760700,
+                    "duration": 10220,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "k",
+                            "type": "int64",
+                            "value": 5
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "8fe931f360dd34e98fc2362adf533666",
+            "spans": [
+                {
+                    "traceID": "8fe931f360dd34e98fc2362adf533666",
+                    "spanID": "34363adbd1ec3b35",
+                    "operationName": "predict",
+                    "references": [],
+                    "startTime": 1782706320050218,
+                    "duration": 165661,
+                    "tags": [
+                        {
+                            "key": "gen_ai.request.model",
+                            "type": "string",
+                            "value": "llama3-mock"
+                        },
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "9c8cec9f30a159a8f64f28f858bdbf29",
+            "spans": [
+                {
+                    "traceID": "9c8cec9f30a159a8f64f28f858bdbf29",
+                    "spanID": "25499005a5597050",
+                    "operationName": "vector-search",
+                    "references": [],
+                    "startTime": 1782706322161437,
+                    "duration": 10340,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "k",
+                            "type": "int64",
+                            "value": 5
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "f1d1a9a4b04d551a63a5e8527a1f06b1",
+            "spans": [
+                {
+                    "traceID": "f1d1a9a4b04d551a63a5e8527a1f06b1",
+                    "spanID": "2e6fdb60af6f69df",
+                    "operationName": "vector-search",
+                    "references": [],
+                    "startTime": 1782706323722075,
+                    "duration": 10447,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "k",
+                            "type": "int64",
+                            "value": 5
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "99f2e63a41417c2aa3cab3008444570b",
+            "spans": [
+                {
+                    "traceID": "99f2e63a41417c2aa3cab3008444570b",
+                    "spanID": "a92e5ab393005d70",
+                    "operationName": "generate-tokens",
+                    "references": [],
+                    "startTime": 1782706326596216,
+                    "duration": 227877,
+                    "tags": [
+                        {
+                            "key": "gen_ai.response.finish_reason",
+                            "type": "string",
+                            "value": "stop"
+                        },
+                        {
+                            "key": "gen_ai.usage.input_tokens",
+                            "type": "int64",
+                            "value": 4
+                        },
+                        {
+                            "key": "gen_ai.usage.output_tokens",
+                            "type": "int64",
+                            "value": 54
+                        },
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "110ba7e5dff40fd87b46bc85bcd2032c",
+            "spans": [
+                {
+                    "traceID": "110ba7e5dff40fd87b46bc85bcd2032c",
+                    "spanID": "b042b6dc84a88ad1",
+                    "operationName": "embed-text",
+                    "references": [],
+                    "startTime": 1782706326977354,
+                    "duration": 5161,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        },
+                        {
+                            "key": "text.length",
+                            "type": "int64",
+                            "value": 43
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "b32303e6c5d2453d12c278e0ec98bb65",
+            "spans": [
+                {
+                    "traceID": "b32303e6c5d2453d12c278e0ec98bb65",
+                    "spanID": "75ebdd754c4def10",
+                    "operationName": "embed-text",
+                    "references": [],
+                    "startTime": 1782706330205593,
+                    "duration": 5216,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        },
+                        {
+                            "key": "text.length",
+                            "type": "int64",
+                            "value": 48
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "15c4f4cfbf8d7e189a1c2b8c6957df14",
+            "spans": [
+                {
+                    "traceID": "15c4f4cfbf8d7e189a1c2b8c6957df14",
+                    "spanID": "54811d6ad13b2de3",
+                    "operationName": "embed-text",
+                    "references": [],
+                    "startTime": 1782706331281078,
+                    "duration": 5394,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        },
+                        {
+                            "key": "text.length",
+                            "type": "int64",
+                            "value": 91
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "24e521e39c64ebedde7704013e3ef982",
+            "spans": [
+                {
+                    "traceID": "24e521e39c64ebedde7704013e3ef982",
+                    "spanID": "51ccfe3697ade5e4",
+                    "operationName": "predict",
+                    "references": [],
+                    "startTime": 1782706331637173,
+                    "duration": 166550,
+                    "tags": [
+                        {
+                            "key": "gen_ai.request.model",
+                            "type": "string",
+                            "value": "llama3-mock"
+                        },
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        },
+        {
+            "traceID": "0043464123fc2ab990cea5ec81cda9f2",
+            "spans": [
+                {
+                    "traceID": "0043464123fc2ab990cea5ec81cda9f2",
+                    "spanID": "e18c2771debf9670",
+                    "operationName": "embed-text",
+                    "references": [],
+                    "startTime": 1782706332789485,
+                    "duration": 5420,
+                    "tags": [
+                        {
+                            "key": "internal.span.format",
+                            "type": "string",
+                            "value": "otlp"
+                        },
+                        {
+                            "key": "otel.scope.name",
+                            "type": "string",
+                            "value": "instrumentation"
+                        },
+                        {
+                            "key": "span.kind",
+                            "type": "string",
+                            "value": "internal"
+                        },
+                        {
+                            "key": "text.length",
+                            "type": "int64",
+                            "value": 43
+                        }
+                    ],
+                    "logs": [],
+                    "processID": "p1",
+                    "warnings": null
+                }
+            ],
+            "processes": {
+                "p1": {
+                    "serviceName": "inference-api",
+                    "tags": [
+                        {
+                            "key": "deployment.environment",
+                            "type": "string",
+                            "value": "lab"
+                        },
+                        {
+                            "key": "service.namespace",
+                            "type": "string",
+                            "value": "aicb"
+                        },
+                        {
+                            "key": "telemetry.sdk.language",
+                            "type": "string",
+                            "value": "python"
+                        },
+                        {
+                            "key": "telemetry.sdk.name",
+                            "type": "string",
+                            "value": "opentelemetry"
+                        },
+                        {
+                            "key": "telemetry.sdk.version",
+                            "type": "string",
+                            "value": "1.28.2"
+                        }
+                    ]
+                }
+            },
+            "warnings": null
+        }
+    ],
+    "total": 0,
+    "limit": 0,
+    "offset": 0,
+    "errors": null
+}

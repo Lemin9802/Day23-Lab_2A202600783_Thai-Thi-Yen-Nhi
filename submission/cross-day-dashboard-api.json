@@ -1,0 +1,23 @@
+[
+    {
+        "id": 5,
+        "uid": "day23-cross-day",
+        "title": "Cross-Day Integration (Day 23)",
+        "uri": "db/cross-day-integration-day-23",
+        "url": "/d/day23-cross-day/cross-day-integration-day-23",
+        "slug": "",
+        "type": "dash-db",
+        "tags": [
+            "aicb",
+            "cross-day",
+            "day23"
+        ],
+        "isStarred": false,
+        "folderId": 1,
+        "folderUid": "efqk68n56jym8f",
+        "folderTitle": "AICB Day 23",
+        "folderUrl": "/dashboards/f/efqk68n56jym8f/AICB Day 23",
+        "sortMeta": 0,
+        "isDeleted": false
+    }
+]

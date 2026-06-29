@@ -1,0 +1,816 @@
+================ GIT DIFF ================
+diff --git a/01-instrument-fastapi/app/main.py b/01-instrument-fastapi/app/main.py
+index 446f78c..0f0f899 100644
+--- a/01-instrument-fastapi/app/main.py
++++ b/01-instrument-fastapi/app/main.py
+@@ -24,6 +24,7 @@ from instrumentation import (
+     tracer,
+ )
+ from inference import simulate_inference, simulate_gpu_load
++from opentelemetry import trace
+ 
+ 
+ @asynccontextmanager
+@@ -67,6 +68,7 @@ def predict(req: PredictRequest) -> PredictResponse:
+     INFERENCE_ACTIVE.inc()
+     start = time.perf_counter()
+     span = tracer.start_span("predict")
++    parent_ctx = trace.set_span_in_context(span)
+     span.set_attribute("gen_ai.request.model", req.model)
+ 
+     try:
+@@ -75,15 +77,15 @@ def predict(req: PredictRequest) -> PredictResponse:
+             log.error("forced failure", model=req.model)
+             raise HTTPException(status_code=503, detail="forced failure (alert demo)")
+ 
+-        with tracer.start_as_current_span("embed-text") as s:
++        with tracer.start_as_current_span("embed-text", context=parent_ctx) as s:
+             s.set_attribute("text.length", len(req.prompt))
+             time.sleep(0.005)
+ 
+-        with tracer.start_as_current_span("vector-search") as s:
++        with tracer.start_as_current_span("vector-search", context=parent_ctx) as s:
+             s.set_attribute("k", 5)
+             time.sleep(0.010)
+ 
+-        with tracer.start_as_current_span("generate-tokens") as s:
++        with tracer.start_as_current_span("generate-tokens", context=parent_ctx) as s:
+             text, in_toks, out_toks, quality = simulate_inference(req.prompt, req.model)
+             s.set_attribute("gen_ai.usage.input_tokens", in_toks)
+             s.set_attribute("gen_ai.usage.output_tokens", out_toks)
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 8f51834..b787cc7 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -59,6 +59,11 @@ services:
+       - ./02-prometheus-grafana/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+     environment:
+       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE/ME}
++    entrypoint: ["/bin/sh", "-c"]
++    command:
++      - |
++        printf '%s' "$$SLACK_WEBHOOK_URL" > /tmp/slack_webhook_url
++        exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml --storage.path=/alertmanager
+     networks: [obs]
+ 
+   grafana:
+
+================ MAIN.PY IMPORTS + PREDICT ================
+     1	"""FastAPI mock LLM inference service.
+     2	
+     3	Emits Prometheus metrics, OTLP traces, and structured JSON logs.
+     4	"""
+     5	from __future__ import annotations
+     6	
+     7	import time
+     8	from contextlib import asynccontextmanager
+     9	
+    10	from fastapi import FastAPI, HTTPException
+    11	from fastapi.responses import Response
+    12	from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+    13	from pydantic import BaseModel
+    14	
+    15	from instrumentation import (
+    16	    GPU_UTIL,
+    17	    INFERENCE_ACTIVE,
+    18	    INFERENCE_LATENCY,
+    19	    INFERENCE_QUALITY,
+    20	    INFERENCE_REQUESTS,
+    21	    INFERENCE_TOKENS,
+    22	    bind_log,
+    23	    setup_otel,
+    24	    tracer,
+    25	)
+    26	from inference import simulate_inference, simulate_gpu_load
+    27	from opentelemetry import trace
+    28	
+    29	
+    30	@asynccontextmanager
+    31	async def lifespan(_: FastAPI):
+    32	    setup_otel()
+    33	    yield
+    34	
+    35	
+    36	app = FastAPI(title="day23-inference-api", lifespan=lifespan)
+    37	log = bind_log("main")
+    38	
+    39	
+    40	class PredictRequest(BaseModel):
+    41	    prompt: str
+    42	    model: str = "llama3-mock"
+    43	    fail: bool = False  # for alert demos
+    44	
+    45	
+    46	class PredictResponse(BaseModel):
+    47	    text: str
+    48	    model: str
+    49	    input_tokens: int
+    50	    output_tokens: int
+    51	    trace_id: str
+    52	    quality_score: float
+    53	
+    54	
+    55	@app.get("/healthz")
+    56	def healthz() -> dict[str, str]:
+    57	    return {"status": "ok"}
+    58	
+    59	
+    60	@app.get("/metrics")
+    61	def metrics() -> Response:
+    62	    GPU_UTIL.set(simulate_gpu_load())
+    63	    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    64	
+    65	
+    66	@app.post("/predict", response_model=PredictResponse)
+    67	def predict(req: PredictRequest) -> PredictResponse:
+    68	    INFERENCE_ACTIVE.inc()
+    69	    start = time.perf_counter()
+    70	    span = tracer.start_span("predict")
+    71	    parent_ctx = trace.set_span_in_context(span)
+    72	    span.set_attribute("gen_ai.request.model", req.model)
+    73	
+    74	    try:
+    75	        if req.fail:
+    76	            INFERENCE_REQUESTS.labels(model=req.model, status="error").inc()
+    77	            log.error("forced failure", model=req.model)
+    78	            raise HTTPException(status_code=503, detail="forced failure (alert demo)")
+    79	
+    80	        with tracer.start_as_current_span("embed-text", context=parent_ctx) as s:
+    81	            s.set_attribute("text.length", len(req.prompt))
+    82	            time.sleep(0.005)
+    83	
+    84	        with tracer.start_as_current_span("vector-search", context=parent_ctx) as s:
+    85	            s.set_attribute("k", 5)
+    86	            time.sleep(0.010)
+    87	
+    88	        with tracer.start_as_current_span("generate-tokens", context=parent_ctx) as s:
+    89	            text, in_toks, out_toks, quality = simulate_inference(req.prompt, req.model)
+    90	            s.set_attribute("gen_ai.usage.input_tokens", in_toks)
+    91	            s.set_attribute("gen_ai.usage.output_tokens", out_toks)
+    92	            s.set_attribute("gen_ai.response.finish_reason", "stop")
+    93	
+    94	        INFERENCE_REQUESTS.labels(model=req.model, status="ok").inc()
+    95	        INFERENCE_TOKENS.labels(model=req.model, direction="input").inc(in_toks)
+    96	        INFERENCE_TOKENS.labels(model=req.model, direction="output").inc(out_toks)
+    97	        INFERENCE_QUALITY.labels(model=req.model).set(quality)
+    98	
+    99	        elapsed = time.perf_counter() - start
+   100	        INFERENCE_LATENCY.labels(model=req.model).observe(elapsed)
+   101	
+   102	        trace_id = format(span.get_span_context().trace_id, "032x")
+   103	        log.info(
+   104	            "prediction served",
+   105	            model=req.model,
+   106	            input_tokens=in_toks,
+   107	            output_tokens=out_toks,
+   108	            quality=quality,
+   109	            duration_seconds=round(elapsed, 4),
+   110	            trace_id=trace_id,
+   111	        )
+   112	        return PredictResponse(
+   113	            text=text,
+   114	            model=req.model,
+   115	            input_tokens=in_toks,
+   116	            output_tokens=out_toks,
+   117	            trace_id=trace_id,
+   118	            quality_score=quality,
+   119	        )
+   120	    finally:
+   121	        INFERENCE_ACTIVE.dec()
+   122	        span.end()
+
+================ INSTRUMENTATION.PY ================
+     1	"""Prometheus + OTel + structlog wiring.
+     2	
+     3	Single source of truth for the metric/span/log namespace.
+     4	"""
+     5	from __future__ import annotations
+     6	
+     7	import logging
+     8	import os
+     9	import sys
+    10	
+    11	import structlog
+    12	from opentelemetry import trace
+    13	from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    14	from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    15	from opentelemetry.sdk.resources import Resource
+    16	from opentelemetry.sdk.trace import TracerProvider
+    17	from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    18	from prometheus_client import Counter, Gauge, Histogram
+    19	
+    20	# ── Prometheus metrics ────────────────────────────────────────
+    21	INFERENCE_REQUESTS = Counter(
+    22	    "inference_requests_total",
+    23	    "Total inference requests",
+    24	    ["model", "status"],
+    25	)
+    26	INFERENCE_LATENCY = Histogram(
+    27	    "inference_latency_seconds",
+    28	    "Inference end-to-end latency",
+    29	    ["model"],
+    30	    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
+    31	)
+    32	INFERENCE_ACTIVE = Gauge(
+    33	    "inference_active_gauge",
+    34	    "In-flight inference requests",
+    35	)
+    36	INFERENCE_TOKENS = Counter(
+    37	    "inference_tokens_total",
+    38	    "Tokens processed (input/output)",
+    39	    ["model", "direction"],
+    40	)
+    41	INFERENCE_QUALITY = Gauge(
+    42	    "inference_quality_score",
+    43	    "Latest eval-as-metric quality score [0,1]",
+    44	    ["model"],
+    45	)
+    46	GPU_UTIL = Gauge(
+    47	    "gpu_utilization_percent",
+    48	    "Simulated GPU utilization [0,100]",
+    49	)
+    50	
+    51	tracer = trace.get_tracer(__name__)
+    52	
+    53	
+    54	def setup_otel() -> None:
+    55	    """Configure OTLP trace export + FastAPI auto-instrumentation."""
+    56	    resource = Resource.create(
+    57	        {
+    58	            "service.name": os.getenv("OTEL_SERVICE_NAME", "inference-api"),
+    59	            "service.namespace": "aicb",
+    60	            "deployment.environment": os.getenv(
+    61	                "DEPLOY_ENV",
+    62	                "lab",
+    63	            ),
+    64	        }
+    65	    )
+    66	    provider = TracerProvider(resource=resource)
+    67	    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+    68	    provider.add_span_processor(
+    69	        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, insecure=True))
+    70	    )
+    71	    trace.set_tracer_provider(provider)
+    72	    # Auto-instrument FastAPI handlers (creates server spans for every route)
+    73	    from fastapi import FastAPI  # local import: only needed at setup
+    74	
+    75	    FastAPIInstrumentor().instrument()
+    76	    _configure_logging()
+    77	
+    78	
+    79	def _configure_logging() -> None:
+    80	    logging.basicConfig(
+    81	        format="%(message)s",
+    82	        stream=sys.stdout,
+    83	        level=os.getenv("LOG_LEVEL", "INFO"),
+    84	    )
+    85	    structlog.configure(
+    86	        processors=[
+    87	            structlog.contextvars.merge_contextvars,
+    88	            structlog.processors.add_log_level,
+    89	            structlog.processors.TimeStamper(fmt="iso"),
+    90	            structlog.processors.JSONRenderer(),
+    91	        ],
+    92	        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    93	        logger_factory=structlog.PrintLoggerFactory(),
+    94	        cache_logger_on_first_use=True,
+    95	    )
+    96	
+    97	
+    98	def bind_log(name: str) -> structlog.BoundLogger:
+    99	    return structlog.get_logger(name)
+
+================ OTEL CONFIG ================
+     1	## OpenTelemetry Collector — receivers / processors / exporters
+     2	## Anchor: deck §7 (sampling math + semantic conventions).
+     3	
+     4	receivers:
+     5	  otlp:
+     6	    protocols:
+     7	      grpc:
+     8	        endpoint: 0.0.0.0:4317
+     9	      http:
+    10	        endpoint: 0.0.0.0:4318
+    11	
+    12	  # Self-metrics (Prometheus-scrapeable on :8888 — see prometheus.yml)
+    13	  prometheus:
+    14	    config:
+    15	      scrape_configs:
+    16	        - job_name: otel-collector
+    17	          scrape_interval: 15s
+    18	          static_configs:
+    19	            - targets: ['localhost:8888']
+    20	
+    21	processors:
+    22	  batch:
+    23	    send_batch_size: 1024
+    24	    timeout: 5s
+    25	
+    26	  # Composite tail-sampling: keep all errors + slow + 1% healthy
+    27	  tail_sampling:
+    28	    decision_wait: 30s
+    29	    num_traces: 50000
+    30	    expected_new_traces_per_sec: 100
+    31	    policies:
+    32	      - name: keep-errors
+    33	        type: status_code
+    34	        status_code: { status_codes: [ERROR] }
+    35	      - name: keep-slow
+    36	        type: latency
+    37	        latency: { threshold_ms: 2000 }
+    38	      - name: probabilistic-1pct
+    39	        type: probabilistic
+    40	        probabilistic: { sampling_percentage: 1 }
+    41	
+    42	  # Add deployment env to every span/metric resource attribute
+    43	  resource:
+    44	    attributes:
+    45	      - key: deployment.environment
+    46	        value: lab
+    47	        action: upsert
+    48	
+    49	exporters:
+    50	  # Traces → Jaeger via OTLP
+    51	  otlp/jaeger:
+    52	    endpoint: jaeger:4317
+    53	    tls:
+    54	      insecure: true
+    55	
+    56	  debug:
+    57	    verbosity: basic
+    58	
+    59	service:
+    60	  pipelines:
+    61	    traces:
+    62	      receivers: [otlp]
+    63	      processors: [tail_sampling, resource, batch]
+    64	      exporters: [otlp/jaeger]
+    65	
+    66	    metrics:
+    67	      receivers: [otlp, prometheus]
+    68	      processors: [resource, batch]
+    69	      exporters: [debug]
+    70	
+    71	  telemetry:
+    72	    logs:
+    73	      level: warn
+    74	    metrics:
+    75	      address: 0.0.0.0:8888
+
+================ COMPOSE APP / OTEL ENV ================
+  app:
+    build:
+      context: /home/emin98/labs/Day23-Track2-Observability-Lab/01-instrument-fastapi/app
+      dockerfile: Dockerfile
+    container_name: day23-app
+    depends_on:
+      otel-collector:
+        condition: service_started
+        required: true
+    environment:
+      LOG_LEVEL: INFO
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=lab,service.namespace=aicb
+      OTEL_SERVICE_NAME: inference-api
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://localhost:8000/healthz
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 8000
+        published: "8000"
+        protocol: tcp
+  grafana:
+    container_name: day23-grafana
+    depends_on:
+      jaeger:
+        condition: service_started
+        required: true
+      loki:
+        condition: service_started
+        required: true
+      prometheus:
+        condition: service_started
+        required: true
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+    image: grafana/grafana:11.3.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3000
+        published: "3000"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/grafana/dashboards
+        target: /var/lib/grafana/dashboards
+        read_only: true
+        bind: {}
+      - type: volume
+        source: grafana-data
+        target: /var/lib/grafana
+        volume: {}
+  jaeger:
+    container_name: day23-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    image: jaegertracing/all-in-one:1.62.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 16686
+        published: "16686"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 14250
+        published: "14250"
+        protocol: tcp
+  loki:
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    container_name: day23-loki
+    image: grafana/loki:3.3.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3100
+        published: "3100"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/03-tracing-and-logs/loki/loki-config.yaml
+        target: /etc/loki/local-config.yaml
+        read_only: true
+        bind: {}
+  otel-collector:
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    container_name: day23-otel-collector
+    depends_on:
+      jaeger:
+        condition: service_started
+        required: true
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 4317
+        published: "4317"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 4318
+        published: "4318"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 8888
+        published: "8888"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/03-tracing-and-logs/otel-collector/otel-config.yaml
+        target: /etc/otelcol-contrib/config.yaml
+        read_only: true
+        bind: {}
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+      - --enable-feature=exemplar-storage
+    container_name: day23-prometheus
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://localhost:9090/-/healthy
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    image: prom/prometheus:v2.55.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 9090
+        published: "9090"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/prometheus/rules
+        target: /etc/prometheus/rules
+        read_only: true
+        bind: {}
+      - type: volume
+        source: prom-data
+        target: /prometheus
+        volume: {}
+networks:
+      otel-collector:
+        condition: service_started
+        required: true
+    environment:
+      LOG_LEVEL: INFO
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=lab,service.namespace=aicb
+      OTEL_SERVICE_NAME: inference-api
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://localhost:8000/healthz
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 8000
+        published: "8000"
+        protocol: tcp
+  grafana:
+    container_name: day23-grafana
+    depends_on:
+      jaeger:
+        condition: service_started
+        required: true
+      loki:
+        condition: service_started
+        required: true
+      prometheus:
+        condition: service_started
+        required: true
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+    image: grafana/grafana:11.3.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3000
+        published: "3000"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/grafana/dashboards
+        target: /var/lib/grafana/dashboards
+        read_only: true
+        bind: {}
+      - type: volume
+        source: grafana-data
+        target: /var/lib/grafana
+        volume: {}
+  jaeger:
+    container_name: day23-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    image: jaegertracing/all-in-one:1.62.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 16686
+        published: "16686"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 14250
+        published: "14250"
+        protocol: tcp
+  loki:
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    container_name: day23-loki
+    image: grafana/loki:3.3.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3100
+        published: "3100"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/03-tracing-and-logs/loki/loki-config.yaml
+        target: /etc/loki/local-config.yaml
+        read_only: true
+        bind: {}
+  otel-collector:
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    container_name: day23-otel-collector
+    depends_on:
+      jaeger:
+        condition: service_started
+        required: true
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 4317
+        published: "4317"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 4318
+        published: "4318"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 8888
+        published: "8888"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/03-tracing-and-logs/otel-collector/otel-config.yaml
+        target: /etc/otelcol-contrib/config.yaml
+        read_only: true
+        bind: {}
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+      - --enable-feature=exemplar-storage
+    container_name: day23-prometheus
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://localhost:9090/-/healthy
+      timeout: 3s
+      interval: 5s
+      retries: 5
+    image: prom/prometheus:v2.55.0
+    networks:
+      obs: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 9090
+        published: "9090"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /home/emin98/labs/Day23-Track2-Observability-Lab/02-prometheus-grafana/prometheus/rules
+        target: /etc/prometheus/rules
+        read_only: true
+        bind: {}
+      - type: volume
+        source: prom-data
+        target: /prometheus
+        volume: {}
+networks:
+
+================ APP RECENT ERRORS ================
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 48, "quality": 0.761, "duration_seconds": 0.2628, "trace_id": "12d0ea4720f0c04b35881a828e3064ec", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:21.099165Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 25, "quality": 0.666, "duration_seconds": 0.1813, "trace_id": "0237ee759826ea437eb95a4f0bae86ee", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:23.285745Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 19, "quality": 0.888, "duration_seconds": 0.1588, "trace_id": "4cec9f22e83267713e4da3757e336b41", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:25.448301Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 14, "quality": 0.79, "duration_seconds": 0.0792, "trace_id": "51e73ea81031aca821b2ec535e8a3437", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:27.531102Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 28, "quality": 0.822, "duration_seconds": 0.2904, "trace_id": "40d3e273bf744b89c86b5f5e1c5c4682", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:29.825246Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 25, "quality": 0.752, "duration_seconds": 0.2127, "trace_id": "10868a500d795a6142bb3802882c4187", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:32.042344Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 54, "quality": 0.817, "duration_seconds": 0.2241, "trace_id": "e8f68487529776e6bc452c3f0d517bd9", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:34.272679Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 32, "quality": 0.795, "duration_seconds": 0.1766, "trace_id": "bfcbfdd1d17f933794ea1b36cfc982f2", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:36.454086Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 30, "quality": 0.828, "duration_seconds": 0.3281, "trace_id": "50b8bc4c00e361e954d7c366c6c6825e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:38.786487Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 19, "quality": 0.843, "duration_seconds": 0.2185, "trace_id": "19eb214296300b8f3aa291b5ab876c64", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:41.008347Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 9, "quality": 0.847, "duration_seconds": 0.2176, "trace_id": "1e3b63bfdf2fe630127e6e105cd5310e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:43.231798Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 26, "quality": 0.84, "duration_seconds": 0.1415, "trace_id": "7eea6b560e60880f951544c3f213859d", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:46.180156Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 61, "quality": 0.856, "duration_seconds": 0.1312, "trace_id": "d43dff058092853100c83994810d7465", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:48.315190Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 19, "quality": 0.816, "duration_seconds": 0.2292, "trace_id": "6e00dcf3d362bfec10effa3ae838367a", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:50.548231Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 53, "quality": 0.787, "duration_seconds": 0.1659, "trace_id": "dcbda6abb202c682b0c9dee577e1e1e8", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:52.717721Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 24, "quality": 0.879, "duration_seconds": 0.097, "trace_id": "52e540305412648b7f2e4c897d12e8e0", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:54.819134Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 25, "quality": 0.868, "duration_seconds": 0.2866, "trace_id": "714c6955a1de76b5eea2c71041c723d1", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:57.109804Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 9, "quality": 0.753, "duration_seconds": 0.1026, "trace_id": "e1e8dd4b17452b7ef2c5954e045a384a", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:32:59.215999Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 9, "quality": 0.729, "duration_seconds": 0.1539, "trace_id": "409040940c825b485c0df93d33b54c46", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:33:01.372623Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 33, "quality": 0.896, "duration_seconds": 0.4077, "trace_id": "a0d89f3bd2eaf0207864731e0603afd2", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:33:03.782503Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 19, "quality": 0.792, "duration_seconds": 0.1268, "trace_id": "69bad5f3e29f37f6d7e5bb7744f67b06", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:33:05.914540Z"}
+--
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 63, "quality": 0.75, "duration_seconds": 0.2505, "trace_id": "12778932b7774642a8b00c037525a600", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:36:49.525909Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 32, "quality": 0.805, "duration_seconds": 0.1111, "trace_id": "2ce197fd2a26663d5b17068cef6f65fb", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:36:52.456710Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 16, "quality": 0.79, "duration_seconds": 0.1394, "trace_id": "5cd643c3e0f9615e05fdb4a008ad7c65", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:36:54.604076Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 29, "quality": 0.774, "duration_seconds": 0.1882, "trace_id": "310832cb674d6483124c4fd74a6b583d", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:36:56.795209Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 40, "quality": 0.771, "duration_seconds": 0.233, "trace_id": "68a82806bcac1631b048a2c4fbbf9fa4", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:36:59.031495Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 47, "quality": 0.759, "duration_seconds": 0.0722, "trace_id": "090095d1178b6e662a85007f0ba6f059", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:01.106262Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 10, "quality": 0.694, "duration_seconds": 0.1517, "trace_id": "4ef459ede9de80553dfa764fbe8b7a26", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:03.262491Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 12, "quality": 0.782, "duration_seconds": 0.1628, "trace_id": "f734358ad4a20c234c6f153469176c23", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:05.430364Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 47, "quality": 0.726, "duration_seconds": 0.2636, "trace_id": "bb0dd66f65c27f72e995e60c81032705", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:07.699691Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 8, "quality": 0.773, "duration_seconds": 0.0993, "trace_id": "ab537291b4d782a6177d87af36101fd4", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:09.806115Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 51, "quality": 0.784, "duration_seconds": 0.3071, "trace_id": "1defa6c2e67b296da7477cc05d347fb8", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:12.119209Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 52, "quality": 0.855, "duration_seconds": 0.1436, "trace_id": "839be581c5063478b7356b5997c991ed", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:14.269814Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 48, "quality": 0.761, "duration_seconds": 0.2626, "trace_id": "599b27a5e568e492f716268090b39e05", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:16.538636Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 25, "quality": 0.666, "duration_seconds": 0.1813, "trace_id": "e2f3b9bf52db14fc2e204c44c448e333", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:18.725043Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 19, "quality": 0.888, "duration_seconds": 0.1585, "trace_id": "0a60df5dfdd06af35c22c103bb75e4d5", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:20.888271Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 14, "quality": 0.79, "duration_seconds": 0.0793, "trace_id": "f46286b11f254547f1b8b43676ade70c", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:23.902717Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 28, "quality": 0.822, "duration_seconds": 0.2912, "trace_id": "bc7e08f1bb94786e47b7d9c474bc532c", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:26.200066Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 25, "quality": 0.752, "duration_seconds": 0.2127, "trace_id": "5a34674b6a0ca88c6d892ed90c7ec39f", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:28.417166Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 54, "quality": 0.817, "duration_seconds": 0.2245, "trace_id": "9529599ac2610a20721050994c509771", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:30.649204Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 32, "quality": 0.795, "duration_seconds": 0.177, "trace_id": "27bd243244fdf01f4e2f66af89cd645e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:32.834194Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 30, "quality": 0.828, "duration_seconds": 0.3284, "trace_id": "0721866e5e0a79780a0a1250a7ac6356", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:37:35.171318Z"}
+--
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 45, "quality": 0.776, "duration_seconds": 0.0761, "trace_id": "7a4bd87d85562a82e79ffecfd2b1f40b", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:04.464985Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 37, "quality": 0.766, "duration_seconds": 0.3314, "trace_id": "5555c6fe75f6516412f8f5e16165957b", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:06.802567Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 59, "quality": 0.839, "duration_seconds": 0.209, "trace_id": "2b09a14701ff78cd92694e3fe3339668", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:09.017728Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 31, "quality": 0.815, "duration_seconds": 0.2107, "trace_id": "cecc23848569eb4f77c1561589f6b096", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:11.233379Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 10, "quality": 0.798, "duration_seconds": 0.1811, "trace_id": "a1f0999ab37ae69484c90e47105658b0", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:13.416885Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 16, "quality": 0.695, "duration_seconds": 0.1873, "trace_id": "32fdd633db38e5001316bb8f2064a92a", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:15.609465Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 54, "quality": 0.729, "duration_seconds": 0.1778, "trace_id": "acb6a79c7cf15ec6891993e071771b48", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:17.795103Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 21, "quality": 0.87, "duration_seconds": 0.2402, "trace_id": "255d574b08ab6b9b9d29cc08f536e5d0", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:20.040549Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 53, "quality": 0.731, "duration_seconds": 0.4189, "trace_id": "88ebbd96cddd008b26e0a5621e95ce82", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:22.468644Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 44, "quality": 0.797, "duration_seconds": 0.1867, "trace_id": "2aa974069b77023a87ad4c6743e4012a", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:25.509852Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 29, "quality": 0.842, "duration_seconds": 0.2606, "trace_id": "f4c88ae9793dc401cfc563634cf03ddd", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:27.778510Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 60, "quality": 0.841, "duration_seconds": 0.2041, "trace_id": "44f23525837aea1ee0ec64deefe37ec6", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:29.987669Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 38, "quality": 0.77, "duration_seconds": 0.3211, "trace_id": "59185a4f475e4f4a300f7d4f30e830f3", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:32.314295Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 36, "quality": 0.806, "duration_seconds": 0.1023, "trace_id": "9f462298356866fd5a259f3d40bae9da", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:34.423364Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 40, "quality": 0.827, "duration_seconds": 0.1365, "trace_id": "47f7e9659557280a20e7b37e73f798c1", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:36.566719Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 30, "quality": 0.799, "duration_seconds": 0.2863, "trace_id": "5afa6c0b61cf227c397029dccabd3482", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:38.857724Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 63, "quality": 0.821, "duration_seconds": 0.2223, "trace_id": "5bda486d496a604abab109230b9c0ed6", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:41.085711Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 48, "quality": 0.814, "duration_seconds": 0.1263, "trace_id": "a585cb2677714c72cf337c54562aeef6", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:43.220753Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 9, "quality": 0.853, "duration_seconds": 0.2303, "trace_id": "20eeec7db1239f28c2fb487b22b9f8c7", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:45.456845Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 16, "quality": 0.784, "duration_seconds": 0.2574, "trace_id": "5781834c9181cbe8d0fa918ec0e50f3b", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:47.721274Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 12, "quality": 0.79, "duration_seconds": 0.1234, "trace_id": "a80b99907a78f273e1c06395eddccc04", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:38:49.849735Z"}
+--
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 45, "quality": 0.8, "duration_seconds": 0.1257, "trace_id": "a5781d9f81a9a9bc8f32d951fa5bfa15", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:30.979479Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 32, "quality": 0.823, "duration_seconds": 0.1876, "trace_id": "14d5f2694babac7a061845d27a917178", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:33.173085Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 58, "quality": 0.933, "duration_seconds": 0.2691, "trace_id": "5d4a7cf877d76efb060b9deb17df0af7", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:35.449135Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 23, "quality": 0.802, "duration_seconds": 0.0875, "trace_id": "d506ddcbf7c70c65d0cda86e57848c4e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:37.542044Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 11, "quality": 0.773, "duration_seconds": 0.2339, "trace_id": "5a987a5d0e82b5c8daa8281f4c7f61ff", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:39.783963Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 44, "quality": 0.927, "duration_seconds": 0.3751, "trace_id": "f46ab895f0bd6e96d389738e2eee3daa", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:42.166500Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 28, "quality": 0.906, "duration_seconds": 0.1697, "trace_id": "d66042d95f73fba6b2cee6e1d657edb5", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:44.341861Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 48, "quality": 0.84, "duration_seconds": 0.1923, "trace_id": "7e5b831f40d2329e18d3c522f2ba5a46", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:46.540133Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 23, "quality": 0.804, "duration_seconds": 0.1318, "trace_id": "e77602ae869d8f098f2a03220d671067", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:48.678783Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 45, "quality": 0.866, "duration_seconds": 0.1874, "trace_id": "dbdba71ea04b7c4211d0968590969342", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:50.874420Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 48, "quality": 0.819, "duration_seconds": 0.3557, "trace_id": "25efa8c5703c7cf5487a48f2b81cd278", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:53.236870Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 28, "quality": 0.875, "duration_seconds": 0.1754, "trace_id": "92617db5a262371106e4d94d1b24710e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:55.415579Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 64, "quality": 0.802, "duration_seconds": 0.3912, "trace_id": "c6cc994aadd985b71bfb89e10bdefe9f", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:39:58.632893Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 59, "quality": 0.793, "duration_seconds": 0.1479, "trace_id": "5f26e6a162069299ff9e49d7e3e92122", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:00.786801Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 21, "quality": 0.797, "duration_seconds": 0.278, "trace_id": "56edd37fc2cc4503d20960b660813015", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:03.068500Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 44, "quality": 0.849, "duration_seconds": 0.2082, "trace_id": "91ccdff24e3b1e34598c8c2087e3397c", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:05.282643Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 10, "quality": 0.827, "duration_seconds": 0.314, "trace_id": "93f090b71cdc6f0fa4f740e5d6c83e69", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:07.605317Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 51, "quality": 0.903, "duration_seconds": 0.0792, "trace_id": "8e9ba0259e69e48ef1b5f4c22a6c3e5e", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:09.688904Z"}
+day23-app  | {"model": "llama3-mock", "input_tokens": 7, "output_tokens": 59, "quality": 0.796, "duration_seconds": 0.1755, "trace_id": "d302c23d9f6610ac92fb5dfe30bf9072", "event": "prediction served", "level": "info", "timestamp": "2026-06-29T05:40:11.873164Z"}
+
+================ OTEL RECENT LOGS ================
+day23-otel-collector  | 2026-06-29T03:32:17.431Z	warn	service@v0.114.0/service.go:221	service::telemetry::metrics::address is being deprecated in favor of service::telemetry::metrics::readers
+day23-otel-collector  | 2026-06-29T03:32:17.433Z	warn	internal@v0.114.0/warning.go:40	Using the 0.0.0.0 address exposes this server to every network interface, which may facilitate Denial of Service attacks.	{"kind": "receiver", "name": "otlp", "data_type": "metrics", "documentation": "https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/security-best-practices.md#safeguards-against-denial-of-service-attacks"}
+day23-otel-collector  | 2026-06-29T03:32:17.434Z	warn	internal@v0.114.0/warning.go:40	Using the 0.0.0.0 address exposes this server to every network interface, which may facilitate Denial of Service attacks.	{"kind": "receiver", "name": "otlp", "data_type": "metrics", "documentation": "https://github.com/open-telemetry/opentelemetry-collector/blob/main/docs/security-best-practices.md#safeguards-against-denial-of-service-attacks"}

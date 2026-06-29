@@ -1,0 +1,7 @@
+cd 04-drift-detection && python3 scripts/drift_detect.py
+Wrote: /home/emin98/labs/Day23-Track2-Observability-Lab/04-drift-detection/reports/drift-summary.json
+  prompt_length        PSI=3.461  KL=1.798  KS=0.702  drift=yes
+  embedding_norm       PSI=0.019  KL=0.032  KS=0.052  drift=no
+  response_length      PSI=0.016  KL=0.018  KS=0.056  drift=no
+  response_quality     PSI=8.849  KL=13.501  KS=0.941  drift=yes
+Wrote: /home/emin98/labs/Day23-Track2-Observability-Lab/04-drift-detection/reports/drift-report.html

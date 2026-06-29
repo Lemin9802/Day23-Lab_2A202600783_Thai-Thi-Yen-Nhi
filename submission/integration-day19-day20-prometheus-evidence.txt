@@ -1,0 +1,87 @@
+---- targets ----
+day19-qdrant up http://host.docker.internal:6333/metrics 
+day20-llamacpp up http://host.docker.internal:8080/metrics 
+
+---- Day19 Qdrant collections_total ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "collections_total",
+                    "instance": "host.docker.internal:6333",
+                    "job": "day19-qdrant"
+                },
+                "value": [
+                    1782742484.446,
+                    "1"
+                ]
+            }
+        ]
+    }
+}
+
+---- Day19 Qdrant collections_vector_total ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "collections_vector_total",
+                    "instance": "host.docker.internal:6333",
+                    "job": "day19-qdrant"
+                },
+                "value": [
+                    1782742484.49,
+                    "3"
+                ]
+            }
+        ]
+    }
+}
+
+---- Day20 llama.cpp predicted tokens ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "llamacpp:tokens_predicted_total",
+                    "instance": "host.docker.internal:8080",
+                    "job": "day20-llamacpp"
+                },
+                "value": [
+                    1782742484.528,
+                    "16"
+                ]
+            }
+        ]
+    }
+}
+
+---- Day20 llama.cpp prompt tokens ----
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "__name__": "llamacpp:prompt_tokens_total",
+                    "instance": "host.docker.internal:8080",
+                    "job": "day20-llamacpp"
+                },
+                "value": [
+                    1782742484.566,
+                    "10"
+                ]
+            }
+        ]
+    }
+}

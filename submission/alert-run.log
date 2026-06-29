@@ -1,0 +1,24 @@
+bash scripts/trigger-alert.sh
+Step 1: kill app container
+Step 2: wait 90s for ServiceDown alert to fire
+  no alert yet (1*5s)
+  no alert yet (2*5s)
+  no alert yet (3*5s)
+  no alert yet (4*5s)
+  no alert yet (5*5s)
+  no alert yet (6*5s)
+  no alert yet (7*5s)
+  no alert yet (8*5s)
+  no alert yet (9*5s)
+  no alert yet (10*5s)
+  no alert yet (11*5s)
+  no alert yet (12*5s)
+  no alert yet (13*5s)
+  no alert yet (14*5s)
+  no alert yet (15*5s)
+  no alert yet (16*5s)
+  no alert yet (17*5s)
+  no alert yet (18*5s)
+Step 3: restart app
+Step 4: wait 60s for alert to resolve
+  alert resolved
